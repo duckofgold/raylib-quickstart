@@ -108,7 +108,23 @@ void DrawInventory(World* world) {
         DrawRectangleRec(slotRect, slotColor);
         DrawRectangleLinesEx(slotRect, 2, BLACK);
         
-        if (player->inventory[i].type != BLOCK_AIR && player->inventory[i].count > 0) {
+        if (player->inventory[i].tool != TOOL_NONE) {
+            Rectangle toolRect = { startX + i * slotSize + 5, startY + 5, slotSize - 10, slotSize - 30 };
+            Color toolColor = BROWN;
+            switch (player->inventory[i].tool) {
+                case TOOL_STONE_PICKAXE: toolColor = GRAY; break;
+                case TOOL_IRON_PICKAXE: toolColor = LIGHTGRAY; break;
+                case TOOL_GOLD_PICKAXE: toolColor = GOLD; break;
+                case TOOL_DIAMOND_PICKAXE: toolColor = SKYBLUE; break;
+                default: toolColor = BROWN; break;
+            }
+            DrawRectangleRec(toolRect, toolColor);
+            DrawRectangleLinesEx(toolRect, 1, BLACK);
+            
+            int durabilityBarWidth = (int)((float)(slotSize - 10) * player->inventory[i].durability / GetToolDurability(player->inventory[i].tool));
+            DrawRectangle(startX + i * slotSize + 5, startY + slotSize - 25, durabilityBarWidth, 5, GREEN);
+            DrawRectangle(startX + i * slotSize + 5 + durabilityBarWidth, startY + slotSize - 25, (slotSize - 10) - durabilityBarWidth, 5, RED);
+        } else if (player->inventory[i].type != BLOCK_AIR && player->inventory[i].count > 0) {
             Rectangle blockRect = { startX + i * slotSize + 5, startY + 5, slotSize - 10, slotSize - 30 };
             DrawRectangleRec(blockRect, GetBlockColor(player->inventory[i].type));
             DrawRectangleLinesEx(blockRect, 1, BLACK);
@@ -126,19 +142,29 @@ void DrawInventory(World* world) {
 
 void DrawUI(World* world) {
     DrawText("2D Voxel World", 10, 10, 20, WHITE);
-    DrawText("WASD/Arrow Keys: Move", 10, 40, 16, WHITE);
-    DrawText("Left Click: Destroy Block", 10, 60, 16, WHITE);
-    DrawText("Right Click: Place Block", 10, 80, 16, WHITE);
-    DrawText("1-9 Keys: Select Inventory", 10, 100, 16, WHITE);
-    DrawText("Mouse Wheel: Scroll Inventory", 10, 120, 16, WHITE);
-    DrawText("E: Open Extended Inventory", 10, 140, 16, WHITE);
-    if (world->player.inWater) {
-        DrawText("Swimming: S to dive, W/Space to swim up", 10, 160, 16, BLUE);
+    
+    if (!world->player.inventoryOpen && !world->player.craftingOpen) {
+        DrawText("WASD: Move, E: Inventory, C: Crafting", 10, 40, 14, WHITE);
+        DrawText("Left Click: Mine, Right Click: Place", 10, 60, 14, WHITE);
+        DrawText("1-9: Select, Mouse Wheel: Scroll", 10, 80, 14, WHITE);
+        
+        if (world->player.inWater) {
+            DrawText("Swimming: S to dive, W/Space to swim up", 10, 100, 14, BLUE);
+        }
     }
     
     char animalCountText[64];
     sprintf(animalCountText, "Animals: %d/%d", world->animalCount, MAX_ANIMALS);
     DrawText(animalCountText, SCREEN_WIDTH - 200, 10, 16, WHITE);
+    
+    if (world->player.inventory[world->player.selectedSlot].tool != TOOL_NONE) {
+        const char* toolName = GetToolName(world->player.inventory[world->player.selectedSlot].tool);
+        int durability = world->player.inventory[world->player.selectedSlot].durability;
+        int maxDurability = GetToolDurability(world->player.inventory[world->player.selectedSlot].tool);
+        char toolText[64];
+        sprintf(toolText, "%s (%d/%d)", toolName, durability, maxDurability);
+        DrawText(toolText, SCREEN_WIDTH - 300, 30, 14, WHITE);
+    }
     
     Player* player = &world->player;
     Vector2 mousePos = GetScreenToWorld2D(GetMousePosition(), world->camera);
@@ -188,17 +214,63 @@ void DrawUI(World* world) {
         }
     }
     
-    if (player->inventory[player->selectedSlot].type != BLOCK_AIR) {
+    if (player->inventory[player->selectedSlot].type != BLOCK_AIR && player->inventory[player->selectedSlot].tool == TOOL_NONE) {
         const char* selectedBlockName = GetBlockName(player->inventory[player->selectedSlot].type);
         char selectedText[64];
         sprintf(selectedText, "Selected: %s (%d)", selectedBlockName, player->inventory[player->selectedSlot].count);
-        DrawText(selectedText, SCREEN_WIDTH - 300, 10, 16, WHITE);
+        DrawText(selectedText, SCREEN_WIDTH - 300, 70, 14, WHITE);
     }
     
     DrawInventory(world);
     
     if (world->player.inventoryOpen) {
         DrawExtendedInventory(world);
+    }
+    
+    if (world->player.craftingOpen) {
+        DrawCrafting(world);
+    }
+    
+    if (player->isBreaking) {
+        Vector2 blockWorldPos = {player->breakingBlockX * BLOCK_SIZE, player->breakingBlockY * BLOCK_SIZE};
+        Vector2 blockScreenPos = GetWorldToScreen2D(blockWorldPos, world->camera);
+        int progressWidth = (int)(BLOCK_SIZE * player->breakProgress);
+        DrawRectangle(blockScreenPos.x, blockScreenPos.y - 8, progressWidth, 6, GREEN);
+        DrawRectangleLinesEx((Rectangle){blockScreenPos.x, blockScreenPos.y - 8, BLOCK_SIZE, 6}, 1, WHITE);
+    }
+}
+
+void DrawCrafting(World* world) {
+    Player* player = &world->player;
+    
+    DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, (Color){0, 0, 0, 150});
+    
+    int startX = SCREEN_WIDTH / 2 - 200;
+    int startY = SCREEN_HEIGHT / 2 - 150;
+    
+    DrawText("Crafting Menu", startX, startY - 30, 20, WHITE);
+    DrawText("Press C to close", startX + 300, startY - 30, 16, WHITE);
+    
+    const char* toolNames[] = {"Wooden Pickaxe", "Stone Pickaxe", "Iron Pickaxe", "Gold Pickaxe", "Diamond Pickaxe"};
+    const char* materials[] = {"3 Wood", "3 Stone + 2 Wood", "3 Iron Ore + 2 Wood", "3 Gold Ore + 2 Wood", "3 Diamond Ore + 2 Wood"};
+    
+    for (int i = 1; i < TOOL_COUNT; i++) {
+        Rectangle toolRect = {startX, startY + (i - 1) * 60, 400, 50};
+        
+        bool canCraft = CanCraftTool(player, (ToolType)i);
+        Color rectColor = canCraft ? GREEN : GRAY;
+        
+        DrawRectangleRec(toolRect, (Color){rectColor.r, rectColor.g, rectColor.b, 100});
+        DrawRectangleLinesEx(toolRect, 2, rectColor);
+        
+        DrawText(toolNames[i - 1], startX + 10, startY + (i - 1) * 60 + 5, 16, WHITE);
+        DrawText(materials[i - 1], startX + 10, startY + (i - 1) * 60 + 25, 14, LIGHTGRAY);
+        
+        if (canCraft) {
+            DrawText("Click to Craft", startX + 300, startY + (i - 1) * 60 + 15, 14, WHITE);
+        } else {
+            DrawText("Missing Materials", startX + 280, startY + (i - 1) * 60 + 15, 14, RED);
+        }
     }
 }
 
@@ -227,7 +299,23 @@ void DrawExtendedInventory(World* world) {
         DrawRectangleRec(slotRect, slotColor);
         DrawRectangleLinesEx(slotRect, 2, BLACK);
         
-        if (player->extendedInventory[i].type != BLOCK_AIR && player->extendedInventory[i].count > 0) {
+        if (player->extendedInventory[i].tool != TOOL_NONE) {
+            Rectangle toolRect = {slotRect.x + 5, slotRect.y + 5, slotSize - 10, slotSize - 20};
+            Color toolColor = BROWN;
+            switch (player->extendedInventory[i].tool) {
+                case TOOL_STONE_PICKAXE: toolColor = GRAY; break;
+                case TOOL_IRON_PICKAXE: toolColor = LIGHTGRAY; break;
+                case TOOL_GOLD_PICKAXE: toolColor = GOLD; break;
+                case TOOL_DIAMOND_PICKAXE: toolColor = SKYBLUE; break;
+                default: toolColor = BROWN; break;
+            }
+            DrawRectangleRec(toolRect, toolColor);
+            DrawRectangleLinesEx(toolRect, 1, BLACK);
+            
+            int durabilityBarWidth = (int)((float)(slotSize - 10) * player->extendedInventory[i].durability / GetToolDurability(player->extendedInventory[i].tool));
+            DrawRectangle(slotRect.x + 5, slotRect.y + slotSize - 20, durabilityBarWidth, 4, GREEN);
+            DrawRectangle(slotRect.x + 5 + durabilityBarWidth, slotRect.y + slotSize - 20, (slotSize - 10) - durabilityBarWidth, 4, RED);
+        } else if (player->extendedInventory[i].type != BLOCK_AIR && player->extendedInventory[i].count > 0) {
             Rectangle blockRect = {slotRect.x + 5, slotRect.y + 5, slotSize - 10, slotSize - 20};
             DrawRectangleRec(blockRect, GetBlockColor(player->extendedInventory[i].type));
             DrawRectangleLinesEx(blockRect, 1, BLACK);

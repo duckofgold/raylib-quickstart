@@ -26,8 +26,9 @@ int main() {
         
         HandleInventoryInput(&world);
         HandleExtendedInventory(&world);
+        HandleCrafting(&world);
         
-        if (!world.player.inventoryOpen) {
+        if (!world.player.inventoryOpen && !world.player.craftingOpen) {
             UpdatePlayer(&world, deltaTime);
             UpdateAnimals(&world, deltaTime);
             HandleBlockInteraction(&world, deltaTime);

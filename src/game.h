@@ -32,6 +32,16 @@ typedef enum {
 } BlockType;
 
 typedef enum {
+    TOOL_NONE = 0,
+    TOOL_WOODEN_PICKAXE,
+    TOOL_STONE_PICKAXE,
+    TOOL_IRON_PICKAXE,
+    TOOL_GOLD_PICKAXE,
+    TOOL_DIAMOND_PICKAXE,
+    TOOL_COUNT
+} ToolType;
+
+typedef enum {
     ANIMAL_RABBIT = 0,
     ANIMAL_BIRD,
     ANIMAL_FISH,
@@ -49,7 +59,9 @@ typedef enum {
 
 typedef struct {
     BlockType type;
+    ToolType tool;
     int count;
+    int durability;
 } InventorySlot;
 
 typedef struct {
@@ -67,6 +79,11 @@ typedef struct {
     int draggedSlot;
     bool isDragging;
     bool dragFromExtended;
+    bool isBreaking;
+    float breakStartTime;
+    float breakProgress;
+    int breakingBlockX, breakingBlockY;
+    bool craftingOpen;
 } Player;
 
 typedef struct {
@@ -100,13 +117,23 @@ void UpdatePlayer(World* world, float deltaTime);
 void HandleBlockInteraction(World* world, float deltaTime);
 void HandleInventoryInput(World* world);
 void HandleExtendedInventory(World* world);
+void HandleCrafting(World* world);
 
 void DrawWorld(World* world);
 void DrawPlayer(World* world);
 void DrawUI(World* world);
 void DrawInventory(World* world);
 void DrawExtendedInventory(World* world);
+void DrawCrafting(World* world);
 void DrawAnimals(World* world);
+
+float GetBlockHardness(BlockType block);
+float GetToolSpeed(ToolType tool);
+bool CanToolBreak(ToolType tool, BlockType block);
+float GetBreakTime(BlockType block, ToolType tool);
+const char* GetToolName(ToolType tool);
+int GetToolDurability(ToolType tool);
+bool CanCraftTool(Player* player, ToolType tool);
 
 void GenerateWorld(World* world);
 void InitAnimals(World* world);
