@@ -25,9 +25,13 @@ int main() {
         float deltaTime = GetFrameTime();
         
         HandleInventoryInput(&world);
-        UpdatePlayer(&world, deltaTime);
-        UpdateAnimals(&world, deltaTime);
-        HandleBlockInteraction(&world, deltaTime);
+        HandleExtendedInventory(&world);
+        
+        if (!world.player.inventoryOpen) {
+            UpdatePlayer(&world, deltaTime);
+            UpdateAnimals(&world, deltaTime);
+            HandleBlockInteraction(&world, deltaTime);
+        }
         
         BeginDrawing();
         ClearBackground(SKYBLUE);

@@ -63,47 +63,45 @@ void GenerateTree(World* world, int x, int baseY) {
     }
 }
 
-void GenerateLake(World* world, int centerX, int centerY, int width, int height) {
-    for (int dy = 0; dy < height; dy++) {
-        for (int dx = -width/2; dx <= width/2; dx++) {
+void GenerateSmallLake(World* world, int centerX, int centerY, int radius) {
+    for (int dy = -radius; dy <= radius; dy++) {
+        for (int dx = -radius; dx <= radius; dx++) {
             int x = centerX + dx;
             int y = centerY + dy;
             
             if (x >= 0 && x < WORLD_WIDTH && y >= 0 && y < WORLD_HEIGHT) {
-                float distFromCenter = sqrt(dx * dx + (dy * 2) * (dy * 2)) / (float)width;
-                if (distFromCenter <= 1.0f) {
-                    world->blocks[y][x] = BLOCK_WATER;
+                float distance = sqrt(dx * dx + dy * dy);
+                if (distance <= radius) {
+                    if (world->blocks[y][x] != BLOCK_STONE) {
+                        world->blocks[y][x] = BLOCK_WATER;
+                    }
                 }
             }
         }
     }
 }
 
-void GenerateRiver(World* world, int startX, int endX, int* surfaceHeights) {
+void GenerateSmallRiver(World* world, int startX, int endX, int* surfaceHeights) {
     if (startX > endX) {
         int temp = startX;
         startX = endX;
         endX = temp;
     }
     
-    int riverWidth = GetRandomValue(2, 4);
-    int riverDepth = GetRandomValue(3, 6);
+    int riverWidth = 1;
+    int riverDepth = GetRandomValue(2, 3);
     
-    for (int x = startX; x <= endX; x++) {
+    for (int x = startX; x <= endX; x += 2) {
         int centerY = surfaceHeights[x];
         
         for (int dy = 0; dy < riverDepth; dy++) {
-            for (int dx = -riverWidth/2; dx <= riverWidth/2; dx++) {
+            for (int dx = -riverWidth; dx <= riverWidth; dx++) {
                 int riverX = x + dx;
                 int riverY = centerY + dy;
                 
                 if (riverX >= 0 && riverX < WORLD_WIDTH && riverY >= 0 && riverY < WORLD_HEIGHT) {
-                    if (dy < riverDepth - 1) {
+                    if (world->blocks[riverY][riverX] != BLOCK_STONE) {
                         world->blocks[riverY][riverX] = BLOCK_WATER;
-                    } else {
-                        if (world->blocks[riverY][riverX] != BLOCK_STONE) {
-                            world->blocks[riverY][riverX] = BLOCK_WATER;
-                        }
                     }
                 }
             }
@@ -152,19 +150,18 @@ void GenerateWorld(World* world) {
         }
     }
     
-    for (int i = 0; i < 3; i++) {
-        int x = GetRandomValue(30, WORLD_WIDTH - 30);
+    for (int i = 0; i < 4; i++) {
+        int x = GetRandomValue(40, WORLD_WIDTH - 40);
         int surfaceY = surfaceHeights[x];
-        int lakeWidth = GetRandomValue(8, 16);
-        int lakeHeight = GetRandomValue(4, 8);
+        int lakeRadius = GetRandomValue(3, 6);
         
-        GenerateLake(world, x, surfaceY, lakeWidth, lakeHeight);
+        GenerateSmallLake(world, x, surfaceY, lakeRadius);
     }
     
-    for (int i = 0; i < 2; i++) {
-        int startX = GetRandomValue(10, WORLD_WIDTH / 3);
-        int endX = GetRandomValue(2 * WORLD_WIDTH / 3, WORLD_WIDTH - 10);
-        GenerateRiver(world, startX, endX, surfaceHeights);
+    for (int i = 0; i < 1; i++) {
+        int startX = GetRandomValue(20, WORLD_WIDTH / 2 - 20);
+        int endX = GetRandomValue(WORLD_WIDTH / 2 + 20, WORLD_WIDTH - 20);
+        GenerateSmallRiver(world, startX, endX, surfaceHeights);
     }
     
     for (int attempt = 0; attempt < 40; attempt++) {
@@ -206,6 +203,26 @@ void GenerateWorld(World* world) {
                     if (y >= 0 && world->blocks[y][x] == BLOCK_AIR) {
                         world->blocks[y][x] = BLOCK_LEAVES;
                     }
+                }
+            }
+        }
+    }
+    
+    for (int x = 0; x < WORLD_WIDTH; x++) {
+        for (int y = 50; y < WORLD_HEIGHT; y++) {
+            if (world->blocks[y][x] == BLOCK_STONE) {
+                int oreChance = GetRandomValue(0, 100);
+                
+                if (y > 85 && oreChance < 8) {
+                    world->blocks[y][x] = BLOCK_COAL_ORE;
+                } else if (y > 80 && oreChance < 4) {
+                    world->blocks[y][x] = BLOCK_IRON_ORE;
+                } else if (y > 85 && oreChance < 2) {
+                    world->blocks[y][x] = BLOCK_GOLD_ORE;
+                } else if (y > 90 && oreChance < 1) {
+                    world->blocks[y][x] = BLOCK_DIAMOND_ORE;
+                } else if (y > 75 && y < 85 && oreChance < 1) {
+                    world->blocks[y][x] = BLOCK_EMERALD_ORE;
                 }
             }
         }

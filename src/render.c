@@ -15,6 +15,11 @@ Color GetBlockColor(BlockType block) {
         case BLOCK_SAND: return YELLOW;
         case BLOCK_WOOD: return (Color){139, 69, 19, 255};
         case BLOCK_LEAVES: return (Color){50, 170, 50, 255};
+        case BLOCK_COAL_ORE: return (Color){64, 64, 64, 255};
+        case BLOCK_IRON_ORE: return (Color){205, 127, 50, 255};
+        case BLOCK_GOLD_ORE: return (Color){255, 215, 0, 255};
+        case BLOCK_DIAMOND_ORE: return (Color){185, 242, 255, 255};
+        case BLOCK_EMERALD_ORE: return (Color){80, 200, 120, 255};
         default: return WHITE;
     }
 }
@@ -28,6 +33,11 @@ const char* GetBlockName(BlockType block) {
         case BLOCK_SAND: return "Sand";
         case BLOCK_WOOD: return "Wood";
         case BLOCK_LEAVES: return "Leaves";
+        case BLOCK_COAL_ORE: return "Coal Ore";
+        case BLOCK_IRON_ORE: return "Iron Ore";
+        case BLOCK_GOLD_ORE: return "Gold Ore";
+        case BLOCK_DIAMOND_ORE: return "Diamond Ore";
+        case BLOCK_EMERALD_ORE: return "Emerald Ore";
         default: return "Air";
     }
 }
@@ -121,8 +131,9 @@ void DrawUI(World* world) {
     DrawText("Right Click: Place Block", 10, 80, 16, WHITE);
     DrawText("1-9 Keys: Select Inventory", 10, 100, 16, WHITE);
     DrawText("Mouse Wheel: Scroll Inventory", 10, 120, 16, WHITE);
+    DrawText("E: Open Extended Inventory", 10, 140, 16, WHITE);
     if (world->player.inWater) {
-        DrawText("Swimming: S to dive, W/Space to swim up", 10, 140, 16, BLUE);
+        DrawText("Swimming: S to dive, W/Space to swim up", 10, 160, 16, BLUE);
     }
     
     char animalCountText[64];
@@ -185,4 +196,86 @@ void DrawUI(World* world) {
     }
     
     DrawInventory(world);
+    
+    if (world->player.inventoryOpen) {
+        DrawExtendedInventory(world);
+    }
+}
+
+void DrawExtendedInventory(World* world) {
+    Player* player = &world->player;
+    
+    DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, (Color){0, 0, 0, 150});
+    
+    int slotSize = 50;
+    int startX = SCREEN_WIDTH / 2 - 225;
+    int startY = SCREEN_HEIGHT / 2 - 135;
+    
+    DrawText("Extended Inventory", startX, startY - 30, 20, WHITE);
+    DrawText("Press E to close", startX + 300, startY - 30, 16, WHITE);
+    
+    for (int i = 0; i < EXTENDED_INVENTORY_SIZE; i++) {
+        int row = i / 9;
+        int col = i % 9;
+        Rectangle slotRect = {startX + col * slotSize, startY + row * slotSize, slotSize, slotSize};
+        
+        Color slotColor = LIGHTGRAY;
+        if (player->isDragging && player->dragFromExtended && player->draggedSlot == i) {
+            slotColor = YELLOW;
+        }
+        
+        DrawRectangleRec(slotRect, slotColor);
+        DrawRectangleLinesEx(slotRect, 2, BLACK);
+        
+        if (player->extendedInventory[i].type != BLOCK_AIR && player->extendedInventory[i].count > 0) {
+            Rectangle blockRect = {slotRect.x + 5, slotRect.y + 5, slotSize - 10, slotSize - 20};
+            DrawRectangleRec(blockRect, GetBlockColor(player->extendedInventory[i].type));
+            DrawRectangleLinesEx(blockRect, 1, BLACK);
+            
+            char countText[8];
+            sprintf(countText, "%d", player->extendedInventory[i].count);
+            DrawText(countText, slotRect.x + 5, slotRect.y + slotSize - 15, 12, WHITE);
+        }
+    }
+    
+    DrawText("Hotbar", startX, startY + 160, 16, WHITE);
+    
+    for (int i = 0; i < INVENTORY_SIZE; i++) {
+        Rectangle slotRect = {startX + i * slotSize, startY + 180, slotSize, slotSize};
+        
+        Color slotColor = (i == player->selectedSlot) ? YELLOW : LIGHTGRAY;
+        if (player->isDragging && !player->dragFromExtended && player->draggedSlot == i) {
+            slotColor = ORANGE;
+        }
+        
+        DrawRectangleRec(slotRect, slotColor);
+        DrawRectangleLinesEx(slotRect, 2, BLACK);
+        
+        if (player->inventory[i].type != BLOCK_AIR && player->inventory[i].count > 0) {
+            Rectangle blockRect = {slotRect.x + 5, slotRect.y + 5, slotSize - 10, slotSize - 20};
+            DrawRectangleRec(blockRect, GetBlockColor(player->inventory[i].type));
+            DrawRectangleLinesEx(blockRect, 1, BLACK);
+            
+            char countText[8];
+            sprintf(countText, "%d", player->inventory[i].count);
+            DrawText(countText, slotRect.x + 5, slotRect.y + slotSize - 15, 12, WHITE);
+        }
+        
+        char slotNum[2];
+        sprintf(slotNum, "%d", i + 1);
+        DrawText(slotNum, slotRect.x + 2, slotRect.y + 2, 10, BLACK);
+    }
+    
+    if (player->isDragging) {
+        Vector2 mousePos = GetMousePosition();
+        InventorySlot* draggedItem = player->dragFromExtended ? 
+            &player->extendedInventory[player->draggedSlot] : 
+            &player->inventory[player->draggedSlot];
+            
+        if (draggedItem->type != BLOCK_AIR && draggedItem->count > 0) {
+            Rectangle dragRect = {mousePos.x - 15, mousePos.y - 15, 30, 30};
+            DrawRectangleRec(dragRect, GetBlockColor(draggedItem->type));
+            DrawRectangleLinesEx(dragRect, 2, WHITE);
+        }
+    }
 }

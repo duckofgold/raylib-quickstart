@@ -10,6 +10,7 @@
 #define SCREEN_WIDTH 1280
 #define SCREEN_HEIGHT 800
 #define INVENTORY_SIZE 9
+#define EXTENDED_INVENTORY_SIZE 27
 #define MAX_REACH_DISTANCE 100.0f
 #define MAX_ANIMALS 20
 
@@ -22,6 +23,11 @@ typedef enum {
     BLOCK_SAND,
     BLOCK_WOOD,
     BLOCK_LEAVES,
+    BLOCK_COAL_ORE,
+    BLOCK_IRON_ORE,
+    BLOCK_GOLD_ORE,
+    BLOCK_DIAMOND_ORE,
+    BLOCK_EMERALD_ORE,
     BLOCK_COUNT
 } BlockType;
 
@@ -53,9 +59,14 @@ typedef struct {
     bool inWater;
     int health;
     InventorySlot inventory[INVENTORY_SIZE];
+    InventorySlot extendedInventory[EXTENDED_INVENTORY_SIZE];
     int selectedSlot;
     float lastJumpTime;
     float lastClickTime;
+    bool inventoryOpen;
+    int draggedSlot;
+    bool isDragging;
+    bool dragFromExtended;
 } Player;
 
 typedef struct {
@@ -88,11 +99,13 @@ void InitPlayer(Player* player);
 void UpdatePlayer(World* world, float deltaTime);
 void HandleBlockInteraction(World* world, float deltaTime);
 void HandleInventoryInput(World* world);
+void HandleExtendedInventory(World* world);
 
 void DrawWorld(World* world);
 void DrawPlayer(World* world);
 void DrawUI(World* world);
 void DrawInventory(World* world);
+void DrawExtendedInventory(World* world);
 void DrawAnimals(World* world);
 
 void GenerateWorld(World* world);

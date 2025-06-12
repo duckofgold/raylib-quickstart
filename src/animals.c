@@ -55,22 +55,26 @@ void InitAnimals(World* world) {
         world->animals[i].alive = false;
     }
     
-    for (int i = 0; i < 12; i++) {
-        AnimalType type = (AnimalType)GetRandomValue(0, ANIMAL_COUNT - 1);
+    for (int i = 0; i < 8; i++) {
+        AnimalType type = (AnimalType)GetRandomValue(0, ANIMAL_COUNT - 2);
         float x = GetRandomValue(50, (WORLD_WIDTH - 50) * BLOCK_SIZE);
         float y = FindGroundHeight(world, x / BLOCK_SIZE);
         
-        if (type == ANIMAL_FISH) {
-            for (int attempt = 0; attempt < 10; attempt++) {
-                x = GetRandomValue(50, (WORLD_WIDTH - 50) * BLOCK_SIZE);
-                y = GetRandomValue(30, 80) * BLOCK_SIZE;
-                if (IsAnimalInWater(world, x, y, 12, 8)) {
-                    break;
-                }
+        SpawnAnimal(world, type, x, y);
+    }
+    
+    for (int i = 0; i < 6; i++) {
+        float x = GetRandomValue(50, (WORLD_WIDTH - 50) * BLOCK_SIZE);
+        float y = GetRandomValue(40, 80) * BLOCK_SIZE;
+        
+        for (int attempt = 0; attempt < 20; attempt++) {
+            x = GetRandomValue(50, (WORLD_WIDTH - 50) * BLOCK_SIZE);
+            y = GetRandomValue(40, 80) * BLOCK_SIZE;
+            if (IsAnimalInWater(world, x, y, 12, 8)) {
+                SpawnAnimal(world, ANIMAL_FISH, x, y);
+                break;
             }
         }
-        
-        SpawnAnimal(world, type, x, y);
     }
 }
 
@@ -244,22 +248,31 @@ void UpdateAnimals(World* world, float deltaTime) {
         }
     }
     
-    if (world->animalCount < 8 && GetRandomValue(0, 1000) < 2) {
+    if (world->animalCount < 12 && GetRandomValue(0, 1000) < 3) {
         AnimalType type = (AnimalType)GetRandomValue(0, ANIMAL_COUNT - 1);
         float x = GetRandomValue(50, (WORLD_WIDTH - 50) * BLOCK_SIZE);
         float y = FindGroundHeight(world, x / BLOCK_SIZE);
         
         if (type == ANIMAL_FISH) {
-            for (int attempt = 0; attempt < 5; attempt++) {
+            bool spawned = false;
+            for (int attempt = 0; attempt < 15; attempt++) {
                 x = GetRandomValue(50, (WORLD_WIDTH - 50) * BLOCK_SIZE);
                 y = GetRandomValue(40, 80) * BLOCK_SIZE;
                 if (IsAnimalInWater(world, x, y, 12, 8)) {
+                    SpawnAnimal(world, type, x, y);
+                    spawned = true;
                     break;
                 }
             }
+            if (!spawned) {
+                type = (AnimalType)GetRandomValue(0, ANIMAL_COUNT - 2);
+                x = GetRandomValue(50, (WORLD_WIDTH - 50) * BLOCK_SIZE);
+                y = FindGroundHeight(world, x / BLOCK_SIZE);
+                SpawnAnimal(world, type, x, y);
+            }
+        } else {
+            SpawnAnimal(world, type, x, y);
         }
-        
-        SpawnAnimal(world, type, x, y);
     }
 }
 
@@ -267,7 +280,12 @@ Color GetAnimalColor(AnimalType type) {
     switch (type) {
         case ANIMAL_RABBIT: return (Color){150, 111, 51, 255};
         case ANIMAL_BIRD: return (Color){70, 130, 180, 255};
-        case ANIMAL_FISH: return (Color){255, 140, 0, 255};
+        case ANIMAL_FISH: {
+            int fishVariant = GetRandomValue(0, 2);
+            if (fishVariant == 0) return (Color){255, 140, 0, 255};
+            else if (fishVariant == 1) return (Color){255, 69, 0, 255};
+            else return (Color){0, 191, 255, 255};
+        }
         case ANIMAL_PIG: return (Color){255, 192, 203, 255};
         case ANIMAL_CHICKEN: return WHITE;
         default: return GRAY;

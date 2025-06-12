@@ -41,10 +41,19 @@ void InitPlayer(Player* player) {
     player->selectedSlot = 0;
     player->lastJumpTime = 0;
     player->lastClickTime = 0;
+    player->inventoryOpen = false;
+    player->isDragging = false;
+    player->draggedSlot = -1;
+    player->dragFromExtended = false;
     
     for (int i = 0; i < INVENTORY_SIZE; i++) {
         player->inventory[i].type = BLOCK_AIR;
         player->inventory[i].count = 0;
+    }
+    
+    for (int i = 0; i < EXTENDED_INVENTORY_SIZE; i++) {
+        player->extendedInventory[i].type = BLOCK_AIR;
+        player->extendedInventory[i].count = 0;
     }
     
     player->inventory[0].type = BLOCK_DIRT;
@@ -55,6 +64,13 @@ void InitPlayer(Player* player) {
     player->inventory[2].count = 16;
     player->inventory[3].type = BLOCK_SAND;
     player->inventory[3].count = 24;
+    
+    player->extendedInventory[0].type = BLOCK_COAL_ORE;
+    player->extendedInventory[0].count = 5;
+    player->extendedInventory[1].type = BLOCK_IRON_ORE;
+    player->extendedInventory[1].count = 3;
+    player->extendedInventory[2].type = BLOCK_GOLD_ORE;
+    player->extendedInventory[2].count = 2;
 }
 
 void UpdatePlayer(World* world, float deltaTime) {
@@ -165,21 +181,92 @@ bool RemoveFromInventory(Player* player, BlockType blockType) {
 void HandleInventoryInput(World* world) {
     Player* player = &world->player;
     
-    if (IsKeyPressed(KEY_ONE)) player->selectedSlot = 0;
-    if (IsKeyPressed(KEY_TWO)) player->selectedSlot = 1;
-    if (IsKeyPressed(KEY_THREE)) player->selectedSlot = 2;
-    if (IsKeyPressed(KEY_FOUR)) player->selectedSlot = 3;
-    if (IsKeyPressed(KEY_FIVE)) player->selectedSlot = 4;
-    if (IsKeyPressed(KEY_SIX)) player->selectedSlot = 5;
-    if (IsKeyPressed(KEY_SEVEN)) player->selectedSlot = 6;
-    if (IsKeyPressed(KEY_EIGHT)) player->selectedSlot = 7;
-    if (IsKeyPressed(KEY_NINE)) player->selectedSlot = 8;
+    if (IsKeyPressed(KEY_E)) {
+        player->inventoryOpen = !player->inventoryOpen;
+    }
     
-    float mouseWheel = GetMouseWheelMove();
-    if (mouseWheel != 0) {
-        player->selectedSlot -= (int)mouseWheel;
-        if (player->selectedSlot < 0) player->selectedSlot = INVENTORY_SIZE - 1;
-        if (player->selectedSlot >= INVENTORY_SIZE) player->selectedSlot = 0;
+    if (!player->inventoryOpen) {
+        if (IsKeyPressed(KEY_ONE)) player->selectedSlot = 0;
+        if (IsKeyPressed(KEY_TWO)) player->selectedSlot = 1;
+        if (IsKeyPressed(KEY_THREE)) player->selectedSlot = 2;
+        if (IsKeyPressed(KEY_FOUR)) player->selectedSlot = 3;
+        if (IsKeyPressed(KEY_FIVE)) player->selectedSlot = 4;
+        if (IsKeyPressed(KEY_SIX)) player->selectedSlot = 5;
+        if (IsKeyPressed(KEY_SEVEN)) player->selectedSlot = 6;
+        if (IsKeyPressed(KEY_EIGHT)) player->selectedSlot = 7;
+        if (IsKeyPressed(KEY_NINE)) player->selectedSlot = 8;
+        
+        float mouseWheel = GetMouseWheelMove();
+        if (mouseWheel != 0) {
+            player->selectedSlot -= (int)mouseWheel;
+            if (player->selectedSlot < 0) player->selectedSlot = INVENTORY_SIZE - 1;
+            if (player->selectedSlot >= INVENTORY_SIZE) player->selectedSlot = 0;
+        }
+    }
+}
+
+void SwapInventorySlots(InventorySlot* slot1, InventorySlot* slot2) {
+    InventorySlot temp = *slot1;
+    *slot1 = *slot2;
+    *slot2 = temp;
+}
+
+void HandleExtendedInventory(World* world) {
+    Player* player = &world->player;
+    
+    if (!player->inventoryOpen) return;
+    
+    Vector2 mousePos = GetMousePosition();
+    
+    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        int slotSize = 50;
+        int startX = SCREEN_WIDTH / 2 - 225;
+        int startY = SCREEN_HEIGHT / 2 - 135;
+        
+        for (int i = 0; i < INVENTORY_SIZE; i++) {
+            Rectangle slotRect = {startX + (i % 9) * slotSize, startY + 180, slotSize, slotSize};
+            if (CheckCollisionPointRec(mousePos, slotRect)) {
+                if (player->isDragging) {
+                    if (player->dragFromExtended) {
+                        SwapInventorySlots(&player->extendedInventory[player->draggedSlot], &player->inventory[i]);
+                    } else {
+                        SwapInventorySlots(&player->inventory[player->draggedSlot], &player->inventory[i]);
+                    }
+                    player->isDragging = false;
+                    player->draggedSlot = -1;
+                } else {
+                    player->isDragging = true;
+                    player->draggedSlot = i;
+                    player->dragFromExtended = false;
+                }
+                return;
+            }
+        }
+        
+        for (int i = 0; i < EXTENDED_INVENTORY_SIZE; i++) {
+            int row = i / 9;
+            int col = i % 9;
+            Rectangle slotRect = {startX + col * slotSize, startY + row * slotSize, slotSize, slotSize};
+            if (CheckCollisionPointRec(mousePos, slotRect)) {
+                if (player->isDragging) {
+                    if (player->dragFromExtended) {
+                        SwapInventorySlots(&player->extendedInventory[player->draggedSlot], &player->extendedInventory[i]);
+                    } else {
+                        SwapInventorySlots(&player->inventory[player->draggedSlot], &player->extendedInventory[i]);
+                    }
+                    player->isDragging = false;
+                    player->draggedSlot = -1;
+                } else {
+                    player->isDragging = true;
+                    player->draggedSlot = i;
+                    player->dragFromExtended = true;
+                }
+                return;
+            }
+        }
+        
+        player->isDragging = false;
+        player->draggedSlot = -1;
     }
 }
 
