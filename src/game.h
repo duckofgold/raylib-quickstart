@@ -11,6 +11,7 @@
 #define SCREEN_HEIGHT 800
 #define INVENTORY_SIZE 9
 #define MAX_REACH_DISTANCE 100.0f
+#define MAX_ANIMALS 20
 
 typedef enum {
     BLOCK_AIR = 0,
@@ -23,6 +24,22 @@ typedef enum {
     BLOCK_LEAVES,
     BLOCK_COUNT
 } BlockType;
+
+typedef enum {
+    ANIMAL_RABBIT = 0,
+    ANIMAL_BIRD,
+    ANIMAL_FISH,
+    ANIMAL_PIG,
+    ANIMAL_CHICKEN,
+    ANIMAL_COUNT
+} AnimalType;
+
+typedef enum {
+    AI_WANDER = 0,
+    AI_FLEE,
+    AI_FOLLOW,
+    AI_SWIM
+} AIState;
 
 typedef struct {
     BlockType type;
@@ -42,9 +59,24 @@ typedef struct {
 } Player;
 
 typedef struct {
+    AnimalType type;
+    float x, y;
+    float velX, velY;
+    AIState state;
+    float stateTimer;
+    float direction;
+    bool onGround;
+    bool inWater;
+    bool alive;
+    float animTime;
+} Animal;
+
+typedef struct {
     BlockType blocks[WORLD_HEIGHT][WORLD_WIDTH];
     Camera2D camera;
     Player player;
+    Animal animals[MAX_ANIMALS];
+    int animalCount;
 } World;
 
 bool IsBlockSolid(BlockType block);
@@ -61,7 +93,13 @@ void DrawWorld(World* world);
 void DrawPlayer(World* world);
 void DrawUI(World* world);
 void DrawInventory(World* world);
+void DrawAnimals(World* world);
 
 void GenerateWorld(World* world);
+void InitAnimals(World* world);
+void SpawnAnimal(World* world, AnimalType type, float x, float y);
+void UpdateAnimals(World* world, float deltaTime);
+Color GetAnimalColor(AnimalType type);
+const char* GetAnimalName(AnimalType type);
 
 #endif

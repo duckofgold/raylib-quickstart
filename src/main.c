@@ -10,6 +10,7 @@ void InitGame(World* world) {
     world->camera.zoom = 1.0f;
     
     GenerateWorld(world);
+    InitAnimals(world);
 }
 
 int main() {
@@ -25,6 +26,7 @@ int main() {
         
         HandleInventoryInput(&world);
         UpdatePlayer(&world, deltaTime);
+        UpdateAnimals(&world, deltaTime);
         HandleBlockInteraction(&world, deltaTime);
         
         BeginDrawing();
@@ -32,6 +34,7 @@ int main() {
         
         BeginMode2D(world.camera);
         DrawWorld(&world);
+        DrawAnimals(&world);
         DrawPlayer(&world);
         EndMode2D();
         

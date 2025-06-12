@@ -125,10 +125,33 @@ void DrawUI(World* world) {
         DrawText("Swimming: S to dive, W/Space to swim up", 10, 140, 16, BLUE);
     }
     
+    char animalCountText[64];
+    sprintf(animalCountText, "Animals: %d/%d", world->animalCount, MAX_ANIMALS);
+    DrawText(animalCountText, SCREEN_WIDTH - 200, 10, 16, WHITE);
+    
     Player* player = &world->player;
     Vector2 mousePos = GetScreenToWorld2D(GetMousePosition(), world->camera);
     int blockX = (int)(mousePos.x / BLOCK_SIZE);
     int blockY = (int)(mousePos.y / BLOCK_SIZE);
+    
+    for (int i = 0; i < MAX_ANIMALS; i++) {
+        if (world->animals[i].alive) {
+            Animal* animal = &world->animals[i];
+            float distX = mousePos.x - (animal->x + 6);
+            float distY = mousePos.y - (animal->y + 6);
+            float distance = sqrt(distX * distX + distY * distY);
+            
+            if (distance < 20) {
+                Vector2 worldPos = {animal->x + 6, animal->y - 10};
+                Vector2 screenPos = GetWorldToScreen2D(worldPos, world->camera);
+                const char* animalName = GetAnimalName(animal->type);
+                DrawText(animalName, screenPos.x - MeasureText(animalName, 12)/2, screenPos.y, 12, YELLOW);
+                
+                Rectangle highlightRect = {animal->x - 2, animal->y - 2, 16, 16};
+                DrawRectangleLinesEx(highlightRect, 2, YELLOW);
+            }
+        }
+    }
     
     if (blockX >= 0 && blockX < WORLD_WIDTH && blockY >= 0 && blockY < WORLD_HEIGHT) {
         float distX = mousePos.x - (player->x + 8);
