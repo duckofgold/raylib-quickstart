@@ -33,6 +33,7 @@ typedef struct {
     int x, y;
     float velX, velY;
     bool onGround;
+    bool inWater;
     int health;
     InventorySlot inventory[INVENTORY_SIZE];
     int selectedSlot;

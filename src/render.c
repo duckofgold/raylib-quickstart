@@ -14,7 +14,7 @@ Color GetBlockColor(BlockType block) {
         case BLOCK_WATER: return (Color){100, 150, 255, 180};
         case BLOCK_SAND: return YELLOW;
         case BLOCK_WOOD: return (Color){139, 69, 19, 255};
-        case BLOCK_LEAVES: return (Color){34, 139, 34, 255};
+        case BLOCK_LEAVES: return (Color){50, 170, 50, 255};
         default: return WHITE;
     }
 }
@@ -51,6 +51,11 @@ void DrawWorld(World* world) {
                 
                 if (world->blocks[y][x] == BLOCK_WATER) {
                     DrawRectangleRec(rect, blockColor);
+                } else if (world->blocks[y][x] == BLOCK_LEAVES && y < WORLD_HEIGHT - 1 && 
+                          (world->blocks[y + 1][x] == BLOCK_GRASS || world->blocks[y + 1][x] == BLOCK_DIRT)) {
+                    DrawRectangle(rect.x + 4, rect.y + 8, 8, 16, (Color){60, 180, 60, 255});
+                    DrawRectangle(rect.x + 12, rect.y + 4, 6, 20, (Color){40, 160, 40, 255});
+                    DrawRectangle(rect.x + 20, rect.y + 12, 8, 12, (Color){80, 200, 80, 255});
                 } else {
                     DrawRectangleRec(rect, blockColor);
                     DrawRectangleLinesEx(rect, 1, BLACK);
@@ -62,10 +67,22 @@ void DrawWorld(World* world) {
 
 void DrawPlayer(World* world) {
     Rectangle playerRect = { world->player.x, world->player.y, 16, 32 };
-    DrawRectangleRec(playerRect, RED);
-    DrawRectangleLinesEx(playerRect, 2, MAROON);
+    Color playerColor = world->player.inWater ? BLUE : RED;
+    Color outlineColor = world->player.inWater ? DARKBLUE : MAROON;
+    
+    DrawRectangleRec(playerRect, playerColor);
+    DrawRectangleLinesEx(playerRect, 2, outlineColor);
     
     DrawCircle(world->player.x + 8, world->player.y + 8, 3, WHITE);
+    
+    if (world->player.inWater) {
+        for (int i = 0; i < 3; i++) {
+            int bubbleX = world->player.x + GetRandomValue(-5, 20);
+            int bubbleY = world->player.y + GetRandomValue(0, 32);
+            int animOffset = ((int)(GetTime() * 20) + i * 10) % 40;
+            DrawCircle(bubbleX, bubbleY - animOffset, 2, (Color){200, 230, 255, 150});
+        }
+    }
 }
 
 void DrawInventory(World* world) {
@@ -104,6 +121,9 @@ void DrawUI(World* world) {
     DrawText("Right Click: Place Block", 10, 80, 16, WHITE);
     DrawText("1-9 Keys: Select Inventory", 10, 100, 16, WHITE);
     DrawText("Mouse Wheel: Scroll Inventory", 10, 120, 16, WHITE);
+    if (world->player.inWater) {
+        DrawText("Swimming: S to dive, W/Space to swim up", 10, 140, 16, BLUE);
+    }
     
     Player* player = &world->player;
     Vector2 mousePos = GetScreenToWorld2D(GetMousePosition(), world->camera);
@@ -120,7 +140,13 @@ void DrawUI(World* world) {
             DrawRectangleLinesEx(highlightRect, 3, WHITE);
             
             if (world->blocks[blockY][blockX] != BLOCK_AIR) {
-                const char* blockName = GetBlockName(world->blocks[blockY][blockX]);
+                const char* blockName;
+                if (world->blocks[blockY][blockX] == BLOCK_LEAVES && blockY < WORLD_HEIGHT - 1 && 
+                   (world->blocks[blockY + 1][blockX] == BLOCK_GRASS || world->blocks[blockY + 1][blockX] == BLOCK_DIRT)) {
+                    blockName = "Grass Patch";
+                } else {
+                    blockName = GetBlockName(world->blocks[blockY][blockX]);
+                }
                 Vector2 worldPos = {highlightRect.x + BLOCK_SIZE/2, highlightRect.y - 10};
                 Vector2 screenPos = GetWorldToScreen2D(worldPos, world->camera);
                 DrawText(blockName, screenPos.x - MeasureText(blockName, 12)/2, screenPos.y, 12, WHITE);

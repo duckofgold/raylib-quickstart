@@ -12,12 +12,31 @@ bool CheckCollision(World* world, int x, int y) {
     return IsBlockSolid(world->blocks[blockY][blockX]);
 }
 
+bool IsInWater(World* world, int x, int y, int width, int height) {
+    int blockX1 = x / BLOCK_SIZE;
+    int blockY1 = y / BLOCK_SIZE;
+    int blockX2 = (x + width - 1) / BLOCK_SIZE;
+    int blockY2 = (y + height - 1) / BLOCK_SIZE;
+    
+    for (int bx = blockX1; bx <= blockX2; bx++) {
+        for (int by = blockY1; by <= blockY2; by++) {
+            if (bx >= 0 && bx < WORLD_WIDTH && by >= 0 && by < WORLD_HEIGHT) {
+                if (world->blocks[by][bx] == BLOCK_WATER) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
 void InitPlayer(Player* player) {
     player->x = WORLD_WIDTH * BLOCK_SIZE / 2;
     player->y = 20 * BLOCK_SIZE;
     player->velX = 0;
     player->velY = 0;
     player->onGround = false;
+    player->inWater = false;
     player->health = 100;
     player->selectedSlot = 0;
     player->lastJumpTime = 0;
@@ -41,9 +60,11 @@ void InitPlayer(Player* player) {
 void UpdatePlayer(World* world, float deltaTime) {
     Player* player = &world->player;
     
-    float speed = 250.0f;
-    float jumpForce = 450.0f;
-    float gravity = 900.0f;
+    player->inWater = IsInWater(world, player->x, player->y, 16, 32);
+    
+    float speed = player->inWater ? 150.0f : 250.0f;
+    float jumpForce = player->inWater ? 200.0f : 450.0f;
+    float gravity = player->inWater ? 200.0f : 900.0f;
     float currentTime = GetTime();
     
     if (IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT)) {
@@ -51,19 +72,35 @@ void UpdatePlayer(World* world, float deltaTime) {
     } else if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT)) {
         player->velX = speed;
     } else {
-        player->velX *= 0.85f;
+        float friction = player->inWater ? 0.7f : 0.85f;
+        player->velX *= friction;
     }
     
-    if ((IsKeyDown(KEY_SPACE) || IsKeyDown(KEY_W) || IsKeyDown(KEY_UP)) && 
-        player->onGround && (currentTime - player->lastJumpTime) > 0.2f) {
-        player->velY = -jumpForce;
-        player->onGround = false;
-        player->lastJumpTime = currentTime;
+    if (player->inWater) {
+        if (IsKeyDown(KEY_SPACE) || IsKeyDown(KEY_W) || IsKeyDown(KEY_UP)) {
+            player->velY = -jumpForce;
+        } else if (IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN)) {
+            player->velY = jumpForce;
+        } else {
+            player->velY *= 0.8f;
+        }
+    } else {
+        if ((IsKeyDown(KEY_SPACE) || IsKeyDown(KEY_W) || IsKeyDown(KEY_UP)) && 
+            player->onGround && (currentTime - player->lastJumpTime) > 0.2f) {
+            player->velY = -jumpForce;
+            player->onGround = false;
+            player->lastJumpTime = currentTime;
+        }
     }
     
-    player->velY += gravity * deltaTime;
-    
-    if (player->velY > 600.0f) player->velY = 600.0f;
+    if (!player->inWater) {
+        player->velY += gravity * deltaTime;
+        if (player->velY > 600.0f) player->velY = 600.0f;
+    } else {
+        player->velY += gravity * deltaTime * 0.3f;
+        if (player->velY > 200.0f) player->velY = 200.0f;
+        if (player->velY < -200.0f) player->velY = -200.0f;
+    }
     
     int newX = player->x + (int)(player->velX * deltaTime);
     int newY = player->y + (int)(player->velY * deltaTime);
@@ -82,9 +119,11 @@ void UpdatePlayer(World* world, float deltaTime) {
         !CheckCollision(world, player->x, newY + 31) &&
         !CheckCollision(world, player->x + 15, newY + 31)) {
         player->y = newY;
-        player->onGround = false;
+        if (!player->inWater) {
+            player->onGround = false;
+        }
     } else {
-        if (player->velY > 0) {
+        if (player->velY > 0 && !player->inWater) {
             player->onGround = true;
         }
         player->velY = 0;
